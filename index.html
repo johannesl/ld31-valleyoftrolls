@@ -1,0 +1,865 @@
+<html>
+<head>
+<title>Valley Of Trolls</title>
+<script src="jquery-2.1.1.min.js">
+</script>
+<script>
+
+/*
+ 
+  Valley Of Trolls - v20141207 2359
+
+  For Ludum Dare 31 compo (solo).
+  Made by Johannes Lundberg a happy weeked in Uppsala, Sweden.
+  
+  Source code is public domain.
+  All rights reserved on graphics and sound. 
+
+  Contact: @johannesl or first.last@gmail.com
+
+*/
+
+
+/**************
+ * GAME STATE
+ */
+
+var fires = 0
+
+var turn = 0
+var turndone = 0
+var gamestate = []
+var homeplayer = 1
+var players = 0
+var timeleft = 0
+ 
+/**************/ 
+
+var dragX = -1
+var dragY = -1
+var dragD = -1
+
+var tilesetImage = new Image()
+var tilesetContext
+
+var screenContext
+
+function drawPixel (id,xpos,ypos,color,scale) {
+    var ctx = document.getElementById(id).getContext('2d');
+    var imgd = ctx.getImageData(xpos, ypos, scale, scale);
+    var pix = imgd.data;
+
+    var i = 0;
+    for (y = 0; y < scale; y++) {
+      for (x = 0; x < scale; x++) {
+        if (color == -1) {
+          pix[i+0] = 0; // red
+          pix[i+1] = 0; // green
+          pix[i+2] = 0; // blue
+          pix[i+3] = 0; // blue
+        } else {
+          pix[i+0] = color[0]; // red
+          pix[i+1] = color[1]; // green
+          pix[i+2] = color[2]; // blue
+          pix[i+3] = 255; // blue
+        }
+        // i+3 is alpha (the fourth element)
+        i += 4;
+      }
+    }
+
+    // Draw the ImageData at the given (x,y) coordinates.
+    ctx.putImageData(imgd, xpos, ypos);
+  }
+
+function dummytile() {
+  var tile = {}
+
+  var i = randint(0,9)
+  if (i < 5)
+    tile.type = 2 // Village
+  else if (i == 6) 
+    tile.type = 0 // Mountain
+  else if (i == 7)
+    tile.type = 3 // Soldier
+  else
+    tile.type = 1 // Troll
+    
+  //               N, NE, SE,  S, SW, NW
+  tile.orders = [  2,  2,  1,  2,  2,  2 ]
+  tile.orders = [  0,  0,  0,  0,  0,  0 ]
+
+  if (tile.type == 2) {
+    tile.owner = randint(-1,4)
+    if (tile.owner < 0) tile.owner = 4
+    tile.size = randint(0,250)
+
+    // Chimneys
+    ch = randint(0,10)
+    if (ch == 10)
+      // Wind mill
+      tile.economy = 5
+    else if (ch > 8)
+      // Double chimneys
+      tile.economy = 4
+    else if (ch > 7)
+      // Tall + small
+      tile.economy = 3
+    else if (ch > 6)
+      // Tall
+      tile.economy = 2
+    else if (ch > 5)
+      // Small
+      tile.economy = 1
+    else
+      tile.economy = 0
+    
+    // Defense
+    ch = randint(0,10)
+    if (ch == 10)
+      tile.defense = 4
+    else if (ch > 8)
+      tile.defense = 3
+    else if (ch > 7)
+      tile.defense = 2
+    else if (ch > 6)
+      tile.defense = 1
+
+    tile.mode = 0
+  }
+  
+  if (tile.type == 3) {
+    tile.owner = randint(0,3)
+    tile.size = randint(0,100)
+    tile.omde = 0
+  }
+
+  return tile
+}
+
+function dummymap() {
+  for (y = 0; y < 5; y++) {
+    for (x = 0; x < 7; x++) {
+      if (parseInt(x % 2) == 0) {
+        if (y < 4)
+          gamestate.push( dummytile() )
+        else
+          gamestate.push( dummytile() )
+      } else {
+        gamestate.push( dummytile() )
+      }
+    }
+  }
+}
+
+var rseed = 7896781
+function randint (a,b) {
+  b = b + 1
+  rseed = (rseed * 125) % 2796203;
+  return a+(rseed%(b-a))
+}
+
+function drawtile(tx,ty,x,y,width) {
+  var ctx = screenContext //document.getElementById('gamecanvas').getContext('2d');
+  var imgd = tilesetContext.getImageData(0,0,152,128);
+
+  var tile = gamestate[ty*7+tx]  
+
+  // Tile background
+  if (tile.type != 0)
+    ctx.drawImage(tilesetImage, 0, 0, 160, 128, x-12, y, 160, 128)
+
+  /************
+   * MOUNTAIN
+   */
+
+  if (tile.type == 0) {
+    ctx.drawImage(tilesetImage, 0, 400, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+  }
+
+  /************
+   * TROLL
+   */
+
+  if (tile.type == 1) {
+    ctx.drawImage(tilesetImage, 0, 500, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+  }
+
+  /************
+   * VILLAGE
+   */
+
+  if (tile.type == 2) {
+  
+    // Home village?
+    if (tile.owner == homeplayer && turn == 0)
+      ctx.drawImage(tilesetImage, 0, 128, 160, 128, x-12, y, 160, 128)
+  
+    // Owner
+    ctx.drawImage(tilesetImage, 300 + 100*tile.owner, 0, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+
+    // Village
+    ctx.drawImage(tilesetImage, 200, 0, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    
+    // Chimneys
+
+    if (tile.economy == 5)
+      // Wind mill
+      ctx.drawImage(tilesetImage, 200, 500, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.economy == 4)
+      // Double tall chimneys
+      ctx.drawImage(tilesetImage, 200, 400, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.economy == 3)
+      // Tall + small
+      ctx.drawImage(tilesetImage, 200, 300, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.economy == 2)
+      // Tall
+      ctx.drawImage(tilesetImage, 200, 200, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.economy == 1)
+      // Small
+      ctx.drawImage(tilesetImage, 200, 100, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    
+    // Defense
+    ch = randint(0,10)
+    if (tile.defense == 4)
+      ctx.drawImage(tilesetImage, 200, 900, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.defense == 3)
+      ctx.drawImage(tilesetImage, 200, 800, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.defense == 2)
+      ctx.drawImage(tilesetImage, 200, 700, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+    else if (tile.defense == 1)
+      ctx.drawImage(tilesetImage, 200, 600, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+
+    // Army size
+    if (tile.owner == homeplayer || tile.owner == 4) {
+    
+      if (tile.size > 99)
+        xoffset = -11
+      else if (tile.size > 9)
+        xoffset = -7
+      else
+        xoffset = -2
+    
+      ctx.font="15px Arial"
+      ctx.fillText(tile.size,x + (136/2) + xoffset,y + (128/2) + 8)
+    }
+    
+    // Village actions
+    if (0 && tile.owner == homeplayer)
+    //if (tx == startTile[0] && ty == startTile[1])
+      ctx.drawImage(tilesetImage, 100, 300, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+  }
+
+  /************
+   * ARMIES
+   */
+  if (tile.type == 3) {
+
+    // Colored shield
+    ctx.drawImage(tilesetImage, 300 + 100*tile.owner, 100, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+
+    // Soldier
+    ctx.drawImage(tilesetImage, 0, 600, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+
+    // Army size
+    if (tile.owner == homeplayer) {
+    
+      value = tile.size
+      if (value > 99)
+        xoffset = -2
+      else if (value > 9)
+        xoffset = 1
+      else
+        xoffset = 3
+            
+      ctx.font="10px Arial"
+      ctx.fillText(value,x + (136/2) + xoffset,y + (128/2) - 1)
+    }
+  }
+
+  //drawPixel("gamecanvas", x-5 + width/2, y-5 + width/2, [255,155,100], 10)
+}
+
+function drawoverlays(tx, ty, x, y) {
+
+  var ctx = screenContext
+  var tile = gamestate[ty*7+tx]  
+
+  //screenContext.drawImage(tilesetImage, 700, 100, 100, 100, x - 100/2, y - 100/2, 100, 100)
+  // Pending actions
+  //if ((tx) == startTile[0]+2 && ty == startTile[1]) {
+
+  // North
+  if (tile.orders[0])
+    ctx.drawImage(tilesetImage, 800 - (tile.orders[0]-1)*200, 256+128*4, 160, 128, x-12, y, 160, 128)
+  // North East
+  if (tile.orders[1])
+    ctx.drawImage(tilesetImage, 800 - (tile.orders[1]-1)*200, 256+128*0, 160, 128, x-12, y, 160, 128)
+  // South East
+  if (tile.orders[2])
+    ctx.drawImage(tilesetImage, 800 - (tile.orders[2]-1)*200, 256+128*2, 160, 128, x-12, y, 160, 128)
+  // South
+  if (tile.orders[3])
+    ctx.drawImage(tilesetImage, 800 - (tile.orders[3]-1)*200, 256+128*5, 160, 128, x-12, y, 160, 128)
+  // South West
+  if (tile.orders[4])
+    ctx.drawImage(tilesetImage, 800 - (tile.orders[4]-1)*200, 256+128*3, 160, 128, x-12, y, 160, 128)
+  // North West
+  if (tile.orders[5])
+    ctx.drawImage(tilesetImage, 800 - (tile.orders[5]-1)*200, 256+128*1, 160, 128, x-12, y, 160, 128)
+
+
+  // FIRES
+  if (timeleft > 3500 && tile.burning > 0)
+    screenContext.drawImage(tilesetImage, 800-100*(tile.burning-1), 100, 100, 100, x + 136/2 - 100/2, y + 128/2 - 100/2, 100, 100)
+
+  // USER INTERFACE
+  if (dragX == tx && dragY == ty)
+    ctx.drawImage(tilesetImage, 100, 800, 100, 100, x + (136/2) - (100/2), y+128/2 - 100/2, 100, 100)
+}
+
+function drawgrid() {
+  var x,y;
+  
+  for (y = 0; y < 5; y++) {
+    for (x = 0; x < 7; x++) {
+      if (parseInt(x % 2) == 0) {
+        if (y < 4)
+          drawtile( x, y, x * 136, y * 128 + 128/2, 136)
+      } else {
+        drawtile( x, y, x * 136, y * 128, 136)
+        //drawPixel("gamecanvas", x * 106 + 106/2-5, y * 106 + 106/2-5, [255,155,100], 10)
+      }
+    }
+  }
+  
+  // OVERLAYS
+  
+  // Fires and animation
+  //for (var i = 0; i < fires.length; i++)
+  //  screenContext.drawImage(tilesetImage, 700, 100, 100, 100, fires[i][0] - 100/2, fires[i][1] - 100/2, 100, 100)
+
+  for (y = 0; y < 5; y++) {
+    for (x = 0; x < 7; x++) {
+      if (parseInt(x % 2) == 0) {
+        if (y < 4)
+          drawoverlays( x, y, x * 136, y * 128 + 128/2, 136)
+      } else {
+        drawoverlays( x, y, x * 136, y * 128, 136)
+        //drawPixel("gamecanvas", x * 106 + 106/2-5, y * 106 + 106/2-5, [255,155,100], 10)
+      }
+    }
+  }
+
+}
+
+function drawframe() {
+  screenContext.clearRect ( 0 , 0 , 960, 640 );
+  drawgrid()
+}
+
+var serverhost = 'valleyoftrolls.ph4.se'
+
+var c = 0
+var nosound = 0
+function nextmusic() {
+  if (nosound) return
+  if (fires > 2)
+    c = 4
+  else if (fires > 0)
+    c = 3
+
+  if (piano[c].paused)
+    piano[c].play()
+  else
+    piano[c].currentTime = 0
+  c = (c + 1) % 3
+}
+
+var mytimer = null
+function timer() {
+  //$('#timerbar').css('width',42+'px')
+  //$('#extra').html( (timeleft / 1000) + 's')
+ 
+  $('#extra').html( '<div id="timerbar" style="width: '+parseInt((timeleft+700)/1000)*40+'px"></div>')
+  
+  if (timeleft == 3500)
+    drawframe()
+
+  if (mytimer != null)
+    clearTimeout(mytimer.stop)
+  
+  if (timeleft > 0)
+    mytimer = setTimeout(timer, 100)
+  else
+    network_sendturn()
+  timeleft -= 100
+}
+function resetTimer() {
+  timeleft = 5000
+  timer()
+}
+
+var piano = new Array(5)
+
+var oks = 0
+function loadresources() {
+
+  var canvas = document.createElement('canvas');
+  tilesetContext = canvas.getContext('2d');
+
+  piano[0] = new Audio('piano1.ogg')
+  piano[1] = new Audio('piano2.ogg')
+  piano[2] = new Audio('piano3.ogg')
+  piano[3] = new Audio('loop3.ogg')
+  piano[4] = new Audio('loop1.ogg')
+
+  tilesetImage.src = 'tileset.png'
+  tilesetImage.onload = function(){
+    oks += 1
+    tilesetContext.drawImage(tilesetImage,0,0)
+  }
+}
+
+// NETWORK PROCESSING
+
+function connected() {
+  network_status('connected');
+  
+  network_join()
+}
+
+function gotData (event) {
+  var msg = jQuery.parseJSON(event.data)
+
+  if (players < 4) {
+    /* Update pregame gfx. */
+    
+    console.log( msg )
+    
+    players = msg.playercount
+    homeplayer = msg.team
+    
+    network_status('waiting.. ' + players + '/4')
+    
+    if (players == 4) {
+      network_status('game starting!')
+      $('#connecting').css('display','none')
+      $('#intro').css('display','none')
+    }
+    return
+  }
+
+  console.log( event.data )
+
+  if (event.data == '{"win":"youwin"}' || event.data == '{"win":"youloose"}') {
+    $('#connecting').css('display','block')
+    if (event.data == '{"win":"youwin"}')
+      $('#connecting').html( 'You win!! :-)' )
+    else
+      $('#connecting').html( 'You loose.. :( Try again! ' )
+    socket.onclose = function(){}
+    socket.close()
+    return
+  }
+    
+
+  turn += 1
+  
+  $('#extra2').html("It's time for turn " +turn)
+  
+  gamestate = msg
+  
+  fires = 0
+  for (y = 0; y < 5; y++) {
+    for (x = 0; x < 7; x++) {
+      if (parseInt(x % 2) == 0 && y >= 4)
+        continue
+        
+      //gamestate[y*7+x] = msg[y*7+x]
+        
+      var tile = gamestate[y*7+x]
+
+      if (tile.burning > 0)
+        fires += 1
+      if (tile.owner != homeplayer) continue
+
+      /* Dummy test */
+      //if (randint(0,4) >1) {
+      //  tile.burning = 2
+      //}
+    }
+  }
+  
+  nextmusic()
+  resetTimer()
+
+  drawframe()
+
+  turndone = 0
+  
+  fires = []
+}
+
+function network_status(s) {
+  //document.title = 'VoT: ' + s;
+  $('#connecting').html(s)
+}
+
+function network_init() {
+  // Connect to WS server
+  socket = new WebSocket('ws://'+serverhost+':29349');
+  socket.onopen = connected;
+  socket.onerror = function(){network_status('error connecting to server');};
+  socket.onclose = function(){if(players==0) { network_status('failed to connect.. try later!') } else { network_status('connection lost') } };
+  socket.onmessage = gotData;
+
+  network_status('connecting to server.. ');
+}
+
+function network_join() {
+  socket.send( 'join ')
+}
+
+function network_sendturn() {
+  turndone = 1
+  dragX = -1
+  dragY = -1
+  dragD = -1
+
+  var out = {"turn":turn}
+  
+  for (y = 0; y < 5; y++) {
+    for (x = 0; x < 7; x++) {
+      if (parseInt(x % 2) == 0 && y >= 4)
+        continue
+      var tile = gamestate[y*7+x]
+
+      if (tile.type != 2 && tile.type != 3) continue
+
+      if (tile.owner != homeplayer) continue
+
+      out[x+','+y] = [tile.mode, tile.orders]
+    }
+  }
+      
+  /* Clean up (should not be needed) */
+  for (y = 0; y < 5; y++) {
+    for (x = 0; x < 7; x++) {
+      if (parseInt(x % 2) == 0 && y >= 4)
+        continue
+      var tile = gamestate[y*7+x]
+      if (tile.owner != homeplayer) continue
+      tile.orders = [0,0,0,0,0,0]
+      tile.burning = 0
+    }
+  }
+  
+  socket.send( JSON.stringify(out) )
+}
+
+
+// USER INTERACTION
+
+function pxy2txy (x, y) {
+  var tx = parseInt(x / 136)
+  var ty
+  if (tx % 2 == 1)
+    ty = parseInt((y) / 128)
+  else
+    ty = parseInt((y-128/2) / 128)
+  if (tx >= 0 && tx < 7)
+    if (ty >= 0 && ty < 5)
+      if ((tx % 2) != 0 || ty < 4)
+        return [tx,ty]
+  return null
+}
+
+function txy2dir (tx, ty, tx2, ty2) {
+  if (tx == tx2) {
+    if (ty2 - ty == 1)
+      return 3 // SOUTH
+    if (ty - ty2 == 1)
+      return 0 // NORTH
+  }
+  
+  if (tx % 2 == 0) {
+    if (ty == ty2 && tx2 - tx == 1) 
+      return 1 // NORTH EAST
+    if (ty == ty2 && tx - tx2 == 1) 
+      return 5 // NORTH WEST
+    if (ty+1 == ty2 && tx2 - tx == 1) 
+      return 2 // SOUTH EAST
+    if (ty+1 == ty2 && tx - tx2 == 1) 
+      return 4 // SOUTH WEST
+  }
+  
+  if (tx % 2 == 1) {
+    if (ty-1 == ty2 && tx2 - tx == 1) 
+      return 1 // NORTH EAST
+    if (ty-1 == ty2 && tx - tx2 == 1) 
+      return 5 // NORTH WEST
+    if (ty == ty2 && tx2 - tx == 1) 
+      return 2 // SOUTH EAST
+    if (ty == ty2 && tx - tx2 == 1) 
+      return 4 // SOUTH WEST
+  }
+  
+  
+  return -1
+}
+
+$(document).ready(function(){
+  //network_init()
+  
+  screenContext = document.getElementById('gamecanvas').getContext('2d');
+
+
+  loadresources()
+
+  //dummymap()
+
+  $(document).keydown(function(e){
+    var keyCode = e.keyCode || e.which;
+    
+    //network_join()
+    /*if (keyCode == 32)
+      network_join()*/
+    //if (keyCode == 13) {
+    //  network_join()
+    //}
+  })
+  
+  $('button').click(function(e){
+    network_init()
+    e.preventDefault()
+  });
+  
+  $('#togglesound').click(function(e){
+  
+    if (nosound == 0) {
+      $('#togglesound').html( 'sound muted')
+      nosound = 1
+    } else {
+      $('#togglesound').html( 'sound enabled')
+      nosound = 0
+    }
+  
+    e.preventDefault()
+  });
+  
+  $('#gamecanvas').mousedown(function(event){
+  
+    if (turndone) return
+  
+    //alert(event.offsetX + ' ' + event.offsetY);
+    //fires.push( [event.offsetX,event.offsetY] )
+/*    var x = parseInt(event.offsetX / 136)
+    var y
+    if (x % 2 == 1)
+      y = parseInt((event.offsetY-128/2) / 128)
+    else
+      y = parseInt((event.offsetY-128/2) / 128)
+    
+    //drawframe()
+    //fires.push( [event.offsetX,event.offsetY] )
+
+    //alert(x + ' ' + y )
+    if (x >= 0 && x < 7)
+      if (y >= 0 && y < 5)
+        if ((x % 2) != 1 || y < 4)
+          { dragX = x ; dragY = y }*/
+    
+    var pos = pxy2txy( event.offsetX, event.offsetY )
+    if (pos) {
+      dragX = pos[0]
+      dragY = pos[1]
+    }
+    
+    
+    // The right owner?
+    if (dragY != -1 && gamestate[dragY*7+dragX].owner && gamestate[dragY*7+dragX].owner != homeplayer) {
+      dragX = -1
+      dragY = -1
+      dragD = -1
+    }
+
+    if (dragX == -1) return
+
+    document.tile = dragX
+        
+    drawframe()
+    drawPixel("gamecanvas", event.offsetX-5, event.offsetY-5, [0,0,0], 10)
+
+    event.preventDefault()    
+  });
+  
+  $('#gamecanvas').mouseup(function(event){
+    dragX = -1
+    dragY = -1
+    dragD = -1
+  });
+  
+  $('#gamecanvas').mousemove(function(event){
+
+    if (dragX == -1) return
+
+    var pos = pxy2txy( event.offsetX, event.offsetY )
+    var tx, ty
+    if (!pos) return
+    
+    tx = pos[0]
+    ty = pos[1]
+    
+    if (tx != dragX || ty != dragY)
+      dragD = txy2dir(dragX,dragY,tx,ty)
+    
+    if (dragD != -1) {
+    
+      // How big is the order? How close to the destination? (Actually, how far away from tx,ty)
+      var x1,y1
+      /*x1 = tx*136-25 + 136/2
+      y1 =  ty*128-25 + 128/2
+      if (tx % 2 == 0)
+        y1 += 128/2*/
+      
+      x1 = dragX*136 + 136/2 - 220/2
+      y1 = dragY*128 + 128/2 - 210/2
+      if (dragX % 2 == 0)
+        y1 += 128/2
+
+      if (event.offsetX >= x1 && event.offsetX <= (x1+220) && event.offsetY >= y1 && event.offsetY <= (y1+210))
+        gamestate[dragY*7+dragX].orders[dragD] = 1
+      else
+        gamestate[dragY*7+dragX].orders[dragD] = 2
+    }
+  
+    drawframe()
+    if (dragD == -1)
+      drawPixel("gamecanvas", event.offsetX-5, event.offsetY-5, [0,0,0], 10)
+
+    if (tx != dragX || ty != dragY) {
+      /*x1 = dragX*136 + 136/2 - 220/2
+      y1 = dragY*128 + 128/2 - 210/2
+      if (dragX % 2 == 0)
+        y1 += 128/2
+      drawPixel("gamecanvas", x1, y1, [0,0,0], 220)*/
+    }
+  });
+  
+});
+
+/*myAudio.addEventListener('ended', function() {
+    this.currentTime = 0;
+    this.play();
+}, false);*/
+//myAudio.play();
+
+
+</script>
+<style>
+body {
+  margin: 0;
+}
+h1 {
+  font-family: Verdana;
+  text-align: center;
+  margin: 0;
+  font-size: 32px;
+}
+#connecting {
+  position: absolute;
+  margin-left: 180px;
+  margin-top: 460px;
+  width: 600px;
+  height: 60px;
+  text-align: center;
+  z-index: 0;
+  background-color: #0365C0;
+  color: #FFF;
+  text-transform: uppercase;
+  font-family: VERDANA;
+  font-weight: bold;
+  line-height: 60px;
+  font-size: 24px;
+}
+#intro {
+  position: absolute;
+  margin-left: 180px;
+  margin-top: 40px;
+  width: 600px;
+  height: 400px;
+  z-index: 0;
+  background-color: #0365C0;
+  color: #FFF;
+  font-family: VERDANA;
+  line-height: 30px;
+  font-size: 24px;
+}
+#intro p {
+  margin: 0;
+  padding: 10px;
+}
+#extra,#extra2 {
+  font-size: 12px;
+  color: #C0C0C0;
+  font-family: Verdana;
+  line-height: 40px;
+  height: 40px;
+  width: 240px;
+}
+#extra {
+  float: right; 
+  text-align: right;
+}
+#extra2 {
+  float: left;
+}
+#timerbar {
+  height: 10px;
+  margin-top: 15px;
+  background-color: #000;
+}
+#footer {
+  font-family: Verdana;
+  text-align: center;
+  margin: 0;
+  margin-top: 10px;
+  font-size: 14px;
+}
+button {
+  height: 40px;
+  width: 200px;
+  text-transform: uppercase;
+  background-color: #FFF;
+  border: none;
+  margin-top: 10px;
+  color: #000;
+  font-size: 24px;
+}
+</style>
+</head>
+</body>
+<div style="margin: 0 auto; width: 960px;">
+<div id="extra">
+  v20141207 2359
+</div>
+<div id="extra2">LD31</div>
+<h1>VALLEY OF TROLLS</h1>
+<div id="intro">
+<p>
+Johannes dared to enter Ludum Dare 31..<br/>Do you dare to enter the Valley of Trolls?<br/><br/>
+Fast-paced internet game for 4 players.<br/><br/>
+Capture villages, get resources and defense.<br/>
+Soldiers out in the open are weak.<br/>
+Drag to issue orders.<br/><br/>
+DOMINATE AND WIN!<br/><br/>
+</p>
+</div>
+<div id="connecting"><button id="join">join game</button></div>
+<canvas style="margin: 0 auto; background-color: #F2F2F2; width: 960px; height: 640px;" width=960 height=640 id="gamecanvas">
+</canvas>
+<div id="footer"><a id="togglesound" href="#">sound enabled</a> - Thanks for playing, I hope you're having fun! :-) - <a href="https://github.com/johannesl/ld31-valleyoftrolls">github</a> - <a href="https://twitter.com/johannesl">@johannesl</a></div>
+</div>
+</body>
+</html>
