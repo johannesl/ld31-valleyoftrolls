@@ -74,6 +74,8 @@ class Game:
     self.playersOnline = 0
     self.turn = -1
     
+  def generatemap(self):
+
     # Generate a new map
 
     # Empty map
@@ -166,6 +168,7 @@ class Game:
     tile['burning'] = 0
 
   def startgame (self):
+    self.generatemap()
     self.sendstate()
   
   # New turn data from client received
@@ -439,8 +442,27 @@ class Game:
     # Update all clients with new player count (and their teams)
     self.sendplayercount()
 
+    if self.playercount == 2:
+      gevent.spawn( self.forcestart )
+
+
     if self.turn == 0:
       self.startgame()    
+  
+  def forcestart(self):
+    print 'forcestart?'
+    gevent.sleep(30)
+    
+    if self.turn != -1: return
+
+    playercount = len(self.clients)
+    
+    if playercount >= 2:
+      self.minplayers = self.playercount
+      self.sendplayercount()
+      print 'minplayers', self.minplayers, self.turn
+      if self.turn == 0:
+        self.startgame()
     
 
 def joinNextGame(client):

@@ -440,7 +440,10 @@ function gotData (event) {
     players = msg.playercount
     homeplayer = msg.team
     
-    network_status('waiting.. ' + players + '/4')
+    if (players >= 2)
+      network_status('waiting up to 30 seconds.. ' + players + '/?')
+    else
+      network_status('waiting.. ' + players + '/2')
     
     if (players == 4) {
       network_status('game starting!')
@@ -849,7 +852,7 @@ button {
 <div id="intro">
 <p>
 Johannes dared to enter Ludum Dare 31..<br/>Do you dare to enter the Valley of Trolls?<br/><br/>
-Fast-paced internet game for 4 players.<br/><br/>
+Fast-paced internet game for 2-4 players.<br/><br/>
 Capture villages, get resources and defense.<br/>
 Soldiers out in the open are weak.<br/>
 Drag to issue orders.<br/><br/>
