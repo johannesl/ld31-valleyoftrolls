@@ -7,3 +7,7 @@ Fast-paced territory control game. Turn-based where each turn is exactly 5 secon
 # Where can I play the game?
 
 Use Google Chrome or Safari and go to [valleyoftrolls.ph4.se](http://valleyoftrolls.ph4.se/)
+
+# Fixes since submission
+
+- fix1: Soldiers can now correctly meet in battle in the open. Also better intro text explaining the game rules + that you join the next game.

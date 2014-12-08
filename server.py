@@ -1,3 +1,15 @@
+#
+#  Valley Of Trolls - v20141207 2359
+#
+#  For Ludum Dare 31 compo (solo).
+#  Made by Johannes Lundberg a happy weeked in Uppsala, Sweden.
+#  
+#  Source code is public domain.
+#  All rights reserved on graphics and sound. 
+#
+#  Contact: @johannesl or first.last@gmail.com
+#
+
 from geventwebsocket import WebSocketServer, WebSocketApplication, Resource
 import gevent
 from random import randint
@@ -27,6 +39,8 @@ NORTHWEST = 5
 #
 # GAME LOGIC
 #
+
+gamelog = open("../log.txt","a")
 
 def dir2txy (direction, tx, ty):
 
@@ -171,7 +185,9 @@ class Game:
 
   def startgame (self):
     self.generatemap()
-    print datetime.utcnow().isoformat(),'gamestarted',self.playercount
+    s = '%s,gamestarted,%s' % (datetime.utcnow().isoformat(),self.playercount)
+    print s
+    gamelog.write( s + '\n' )
     self.sendstate()
   
   # New turn data from client received
@@ -301,10 +317,20 @@ class Game:
         
         if tile.has_key('attackers'):
           # Internal fight between attackers first (lucky defender)
-          # FIXME
-            
-          player = tile['attackers'].keys()[0]
-          size = tile['attackers'][player]
+          
+          if len(tile['attackers']) > 1:
+            l = tile['attackers'].values()
+            l.sort()
+            biggestlooser = l[-2]
+
+            for key in tile['attackers']:
+              if tile['attackers'][key] == l[-1]:
+                player = key
+                size = tile['attackers'][key] - biggestlooser
+
+          else:
+            player = tile['attackers'].keys()[0]
+            size = tile['attackers'][player]
 
           # Unoccupied?
           if tile['type'] == EMPTY:

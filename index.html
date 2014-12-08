@@ -440,10 +440,13 @@ function gotData (event) {
     players = msg.playercount
     homeplayer = msg.team
     
-    if (players >= 2)
+    if (players >= 2) {
       network_status('waiting up to 30 seconds.. ' + players + '/?')
-    else
+      document.title = "Get ready!"
+      nextmusic()
+    } else {
       network_status('waiting.. ' + players + '/2')
+    }
     
     if (players == 4) {
       network_status('game starting!')
@@ -797,11 +800,11 @@ h1 {
   color: #FFF;
   font-family: VERDANA;
   line-height: 30px;
-  font-size: 24px;
+  font-size: 22px;
 }
 #intro p {
   margin: 0;
-  padding: 10px;
+  margin: 20px;
 }
 #extra,#extra2 {
   font-size: 12px;
@@ -832,7 +835,7 @@ h1 {
 }
 button {
   height: 40px;
-  width: 200px;
+  width: 260px;
   text-transform: uppercase;
   background-color: #FFF;
   border: none;
@@ -845,21 +848,19 @@ button {
 </body>
 <div style="margin: 0 auto; width: 960px;">
 <div id="extra">
-  v20141207 2359
+  v20141207 2359 fix1
 </div>
 <div id="extra2">LD31</div>
 <h1>VALLEY OF TROLLS</h1>
 <div id="intro">
 <p>
-Johannes dared to enter Ludum Dare 31..<br/>Do you dare to enter the Valley of Trolls?<br/><br/>
 Fast-paced internet game for 2-4 players.<br/><br/>
-Capture villages, get resources and defense.<br/>
-Soldiers out in the open are weak.<br/>
-Drag to issue orders.<br/><br/>
-DOMINATE AND WIN!<br/><br/>
+Drag to issue orders. Captured villages have +10% defense and give +4 each turn. Chimneys and windmills even more.<br/><br/>
+Fences and walls increase defense bonus. Soldiers have -20% defense bonus. Trolls can be killed by 40 soldiers. <br/><br/>
+Dominate and win!<br/><br/>
 </p>
 </div>
-<div id="connecting"><button id="join">join game</button></div>
+<div id="connecting"><button id="join">join next game</button></div>
 <canvas style="margin: 0 auto; background-color: #F2F2F2; width: 960px; height: 640px;" width=960 height=640 id="gamecanvas">
 </canvas>
 <div id="footer"><a id="togglesound" href="#">sound enabled</a> - Thanks for playing, I hope you're having fun! :-) - <a href="https://github.com/johannesl/ld31-valleyoftrolls">github</a> - <a href="https://twitter.com/johannesl">@johannesl</a></div>
