@@ -2,6 +2,8 @@ from geventwebsocket import WebSocketServer, WebSocketApplication, Resource
 import gevent
 from random import randint
 
+import datetime
+
 import json
 import math
 import sys
@@ -169,6 +171,7 @@ class Game:
 
   def startgame (self):
     self.generatemap()
+    print datetime.utcnow().isoformat(),'gamestarted',self.playercount
     self.sendstate()
   
   # New turn data from client received
