@@ -2,7 +2,7 @@ from geventwebsocket import WebSocketServer, WebSocketApplication, Resource
 import gevent
 from random import randint
 
-import datetime
+from datetime import datetime
 
 import json
 import math
