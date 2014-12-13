@@ -32,6 +32,7 @@ var gamestate = []
 var homeplayer = 1
 var players = 0
 var timeleft = 0
+var waitingleft = 30
  
 /**************/ 
 
@@ -449,7 +450,15 @@ function gotData (event) {
     homeplayer = msg.team
     
     if (players >= 2) {
-      network_status('waiting up to 30 seconds.. ' + players + '/?')
+      waitingleft = 30
+      network_status('waiting up to <span id="waitingleft">30</span> seconds.. ' + players + '/4')
+      var f = function() {
+        $('#waitingleft').html(waitingleft)
+        waitingleft -= 1
+        if (waitingleft > 0)
+          setTimeout(f, 1000)
+      }
+      f()
       document.title = "Get ready!"
       nextmusic()
     } else {
@@ -651,8 +660,8 @@ $(document).ready(function(){
     network_init()
     e.preventDefault()
     
-    $('#intro').html( '<p><iframe width="560" height="315" src="http://www.youtube.com/embed/cEy5xQ2gwHU" frameborder="0"></iframe>' + 
-                'This video shows an earlier round that you can watch while waiting for more players.</p>' )
+    $('#intro').html( '<p><iframe width="560" height="315" src="http://www.youtube.com/embed/QfRAmRBS-F0" frameborder="0"></iframe>' + 
+                'While waiting for more players, this video shows how to play the game.</p>' )
 
   });
   
@@ -670,6 +679,8 @@ $(document).ready(function(){
   });
   
   $('#gamecanvas').mousedown(function(event){
+  
+    if (turn == 0) return
   
     if (turndone) return
   
@@ -691,7 +702,10 @@ $(document).ready(function(){
         if ((x % 2) != 1 || y < 4)
           { dragX = x ; dragY = y }*/
     
-    var pos = pxy2txy( event.offsetX, event.offsetY )
+    var offsetX = event.pageX - $(this).offset()['left']
+    var offsetY = event.pageY - $(this).offset()['top']
+    
+    var pos = pxy2txy( offsetX, offsetY )
     if (pos) {
       dragX = pos[0]
       dragY = pos[1]
@@ -710,7 +724,7 @@ $(document).ready(function(){
     document.tile = dragX
         
     drawframe()
-    drawPixel("gamecanvas", event.offsetX-5, event.offsetY-5, [0,0,0], 10)
+    drawPixel("gamecanvas", offsetX-5, offsetY-5, [0,0,0], 10)
 
     event.preventDefault()    
   });
@@ -725,7 +739,10 @@ $(document).ready(function(){
 
     if (dragX == -1) return
 
-    var pos = pxy2txy( event.offsetX, event.offsetY )
+    var offsetX = event.pageX - $(this).offset()['left']
+    var offsetY = event.pageY - $(this).offset()['top']
+
+    var pos = pxy2txy( offsetX, offsetY )
     var tx, ty
     if (!pos) return
     
@@ -749,7 +766,7 @@ $(document).ready(function(){
       if (dragX % 2 == 0)
         y1 += 128/2
 
-      if (event.offsetX >= x1 && event.offsetX <= (x1+220) && event.offsetY >= y1 && event.offsetY <= (y1+210))
+      if (offsetX >= x1 && offsetX <= (x1+220) && offsetY >= y1 && offsetY <= (y1+210))
         gamestate[dragY*7+dragX].orders[dragD] = 2
       else
         gamestate[dragY*7+dragX].orders[dragD] = 2
@@ -757,7 +774,7 @@ $(document).ready(function(){
   
     drawframe()
     if (dragD == -1)
-      drawPixel("gamecanvas", event.offsetX-5, event.offsetY-5, [0,0,0], 10)
+      drawPixel("gamecanvas", offsetX-5, offsetY-5, [0,0,0], 10)
 
     if (tx != dragX || ty != dragY) {
       /*x1 = dragX*136 + 136/2 - 220/2
@@ -863,7 +880,7 @@ button {
 </body>
 <div style="margin: 0 auto; width: 960px;">
 <div id="extra">
-  v20141207 2359 fix3
+  v20141207 2359 fix4
 </div>
 <div id="extra2">LD31</div>
 <h1>VALLEY OF TROLLS</h1>
@@ -871,8 +888,7 @@ button {
 <p>
 Fast-paced internet game for 2-4 players.<br/><br/>
 Issue orders by dragging from your villages. All players move at the same time, 5 seconds per turn. Captured villages have +10% defense and give +4 each turn. Chimneys and windmills more.<br/><br/>
-Fences and walls increase defense bonus. Soldiers have -20% defense bonus. Trolls can be killed by 40 soldiers and but will spawn up to 2 new trolls. <br/><br/>
-Dominate and win!<br/><br/>
+Fences and walls increase defense bonus. Soldiers have -20% defense bonus. Trolls can be killed by 40 soldiers and you only loose 20 soldiers, but this will spawn up to 2 new trolls, who might stomp 20 other soldiers each. Dominate and win!<br/><br/>
 </p>
 </div>
 <div id="connecting"><button id="join">join next game</button></div>

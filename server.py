@@ -184,10 +184,12 @@ class Game:
     tile['burning'] = 0
 
   def startgame (self):
+    self.gameid = datetime.utcnow().isoformat()
     self.generatemap()
-    s = '%s,gamestarted,%s' % (datetime.utcnow().isoformat(),self.playercount)
+    s = '%s,gamestarted,%s' % (self.gameid,self.playercount)
     print s
     gamelog.write( s + '\n' )
+    gamelog.flush()
     self.sendstate()
   
   # New turn data from client received
@@ -328,6 +330,7 @@ class Game:
               if tile['attackers'][key] == l[-1]:
                 player = key
                 size = tile['attackers'][key] - biggestlooser
+                tile['burning'] = 1
 
           else:
             player = tile['attackers'].keys()[0]
@@ -343,10 +346,10 @@ class Game:
 
             # Troll
             if tile['type'] == TROLL:
-              if size > 40:
+              if size >= 40:
                 tile['type'] = SOLDIER
                 tile['owner'] = player
-                tile['size'] = size - 40
+                tile['size'] = size - 20
                 tile['burning'] = 2
                 
                 # Spawn up to 2 new trolls
@@ -390,17 +393,21 @@ class Game:
         if tx % 2 == 0:
           if ty >= 4: continue
         tile = self.gamestate[ty*7+tx]
-        if tile['type'] == EMPTY or (tile['type'] == SOLDIER and tile['size'] < 10):
-          if tile['burning'] == 0:
-            empty.append( (tx,ty) )
+        if tile['burning'] == 0:
+          if tile['type'] == EMPTY:
+            empty.append( (tx,ty,0) )
+          if tile['type'] == SOLDIER and tile['size'] < 20:
+            empty.append( (tx,ty,2) )
 
     while newtrolls > 0:
-      i = randint(0,len(empty)-1)
-      tile = self.gamestate[empty[i][1]*7+empty[i][0]]
-      tile['type'] = TROLL
-      tile['owner'] = 4
-      tile['size'] = 0
-      del empty[i]
+      if len(empty) > 0:
+        i = randint(0,len(empty)-1)
+        tile = self.gamestate[empty[i][1]*7+empty[i][0]]
+        tile['type'] = TROLL
+        tile['owner'] = 4
+        tile['size'] = 0
+        tile['burning'] = empty[i][2]
+        del empty[i]
       newtrolls -= 1
 
     self.sendstate()
@@ -437,6 +444,10 @@ class Game:
     pass
 
   def sendstate (self):
+    if self.turn < 500:
+      s = '%s,gamestate,%s,%s' % (datetime.utcnow().isoformat(),self.gameid,json.dumps(self.gamestate).replace(' ',''))
+      gamelog.write( s + '\n' )
+      gamelog.flush()
     if self.winner > -1:
       print 'WE HAVE A WINNER', self.winner
       for client in self.clients:
@@ -448,10 +459,16 @@ class Game:
 
     else:
       # Send out intial gamestate to all players
+      drop = []
       for client in self.clients:
         s = json.dumps(self.gamestate)
-        client.ws.send( s )
-      
+        try:
+          client.ws.send( s )
+        except:
+          drop.append( client)
+      for client in drop:
+        self.disconnectplayer( client )
+
   def sendplayercount(self):
     self.playercount = len(self.clients)
   
@@ -476,8 +493,15 @@ class Game:
   
     if not client in self.clients: return
 
-    print 'disconnectplayer',client
     del self.clients[self.clients.index(client)]
+
+    try:
+      s = '%s,connectiondropped,%s' % (datetime.utcnow().isoformat(), self.gameid)
+    except:
+      s = '%s,connectiondropped' % (datetime.utcnow().isoformat())
+    print s
+    gamelog.write( s + '\n' )
+    gamelog.flush()
 
     self.playersOnline -= 1
     
@@ -540,7 +564,10 @@ def joinNextGame(client):
 
 class ServerApplication(WebSocketApplication):
   def on_open(self):
-    print "newconnection"
+    s = '%s,newconnection' % (datetime.utcnow().isoformat())
+    print s
+    gamelog.write( s + '\n' )
+    gamelog.flush()
     self.status = 0
 
   def on_message(self, message):
