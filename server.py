@@ -161,11 +161,11 @@ class Game:
     if tile['type'] == 2:
       tile['owner'] = 4
       if i == 4:
-        tile['size'] = randint(70,240)
+        tile['size'] = randint(70,130)
         tile['economy'] = randint(0,5)
         tile['defense'] = randint(0,4)
       else:
-        tile['size'] = randint(20,40,)
+        tile['size'] = randint(20,40)
         tile['economy'] = 0
         tile['defense'] = 0
 
@@ -308,6 +308,7 @@ class Game:
           del tile['supporters']
 
     # Attacks?
+    newtrolls = 0
     for ty in range(0,5):
       for tx in range(0,7):
         if tx % 2 == 0:
@@ -347,6 +348,10 @@ class Game:
                 tile['owner'] = player
                 tile['size'] = size - 40
                 tile['burning'] = 2
+                
+                # Spawn up to 2 new trolls
+                newtrolls += randint(1,2)
+                
             elif tile['type'] == SOLDIER:
               defensebonus = 0.8
             
@@ -377,6 +382,26 @@ class Game:
 
           del tile['attackers']
           #self.paused = 1
+
+    # New trolls
+    empty = []
+    for ty in range(0,5):
+      for tx in range(0,7):
+        if tx % 2 == 0:
+          if ty >= 4: continue
+        tile = self.gamestate[ty*7+tx]
+        if tile['type'] == EMPTY or (tile['type'] == SOLDIER and tile['size'] < 10):
+          if tile['burning'] == 0:
+            empty.append( (tx,ty) )
+
+    while newtrolls > 0:
+      i = randint(0,len(empty)-1)
+      tile = self.gamestate[empty[i][1]*7+empty[i][0]]
+      tile['type'] = TROLL
+      tile['owner'] = 4
+      tile['size'] = 0
+      del empty[i]
+      newtrolls -= 1
 
     self.sendstate()
     

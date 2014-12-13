@@ -11,3 +11,5 @@ Use Google Chrome or Safari and go to [valleyoftrolls.ph4.se](http://valleyoftro
 # Fixes since submission
 
 - fix1: Soldiers can now correctly meet in battle in the open. Also better intro text explaining the game rules + that you join the next game.
+- fix2: Always move full army. Longer timer first turn.
+- fix3: Killing trolls spawn new trolls. Better intro text and a youtube video that shows a recording of a previous game while waiting for players.

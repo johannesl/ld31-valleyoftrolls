@@ -161,7 +161,7 @@ function randint (a,b) {
 
 function drawtile(tx,ty,x,y,width) {
   var ctx = screenContext //document.getElementById('gamecanvas').getContext('2d');
-  var imgd = tilesetContext.getImageData(0,0,152,128);
+  //var imgd = tilesetContext.getImageData(0,0,152,128);
 
   var tile = gamestate[ty*7+tx]  
 
@@ -381,7 +381,12 @@ function timer() {
   //$('#timerbar').css('width',42+'px')
   //$('#extra').html( (timeleft / 1000) + 's')
  
-  $('#extra').html( '<div id="timerbar" style="width: '+parseInt((timeleft+700)/1000)*40+'px"></div>')
+  var time5
+  if (timeleft >= 5000)
+    time5 = 5000
+  else
+    time5 = timeleft
+  $('#extra').html( '<div id="timerbar" style="width: '+parseInt((time5+700)/1000)*40+'px"></div>')
   
   if (timeleft == 3500)
     drawframe()
@@ -396,7 +401,10 @@ function timer() {
   timeleft -= 100
 }
 function resetTimer() {
-  timeleft = 5000
+  if (turn == 0)
+    timeleft = 10000
+  else
+    timeleft = 5000
   timer()
 }
 
@@ -449,6 +457,9 @@ function gotData (event) {
     }
     
     if (players == 4) {
+      // Disable intro video
+      $('#intro').html('')
+    
       network_status('game starting!')
       $('#connecting').css('display','none')
       $('#intro').css('display','none')
@@ -639,6 +650,10 @@ $(document).ready(function(){
   $('button').click(function(e){
     network_init()
     e.preventDefault()
+    
+    $('#intro').html( '<p><iframe width="560" height="315" src="http://www.youtube.com/embed/cEy5xQ2gwHU" frameborder="0"></iframe>' + 
+                'This video shows an earlier round that you can watch while waiting for more players.</p>' )
+
   });
   
   $('#togglesound').click(function(e){
@@ -735,7 +750,7 @@ $(document).ready(function(){
         y1 += 128/2
 
       if (event.offsetX >= x1 && event.offsetX <= (x1+220) && event.offsetY >= y1 && event.offsetY <= (y1+210))
-        gamestate[dragY*7+dragX].orders[dragD] = 1
+        gamestate[dragY*7+dragX].orders[dragD] = 2
       else
         gamestate[dragY*7+dragX].orders[dragD] = 2
     }
@@ -794,7 +809,7 @@ h1 {
   margin-left: 180px;
   margin-top: 40px;
   width: 600px;
-  height: 400px;
+  height: 410px;
   z-index: 0;
   background-color: #0365C0;
   color: #FFF;
@@ -855,8 +870,8 @@ button {
 <div id="intro">
 <p>
 Fast-paced internet game for 2-4 players.<br/><br/>
-Drag to issue orders. Captured villages have +10% defense and give +4 each turn. Chimneys and windmills even more.<br/><br/>
-Fences and walls increase defense bonus. Soldiers have -20% defense bonus. Trolls can be killed by 40 soldiers. <br/><br/>
+Issue orders by dragging from your villages. All players move at the same time, 5 seconds per turn. Captured villages have +10% defense and give +4 each turn. Chimneys and windmills more.<br/><br/>
+Fences and walls increase defense bonus. Soldiers have -20% defense bonus. Trolls can be killed by 40 soldiers and but will spawn up to 2 new trolls. <br/><br/>
 Dominate and win!<br/><br/>
 </p>
 </div>
